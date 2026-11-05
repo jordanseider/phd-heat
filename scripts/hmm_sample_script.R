@@ -278,3 +278,67 @@ data_2s <- windows %>%
   ) %>%
   select(-window_id)
 
+## Training HMM
+library(hmmTMB)
+
+# hmmTMB requires the data to be a dataframe with an 'ID' column (to separate individuals) and the data streams.
+data_hmm <- data_2s %>%
+  dplyr::select(ID, Modifiers, meanrot_stx, sdrot_dyz, drot_Y, 
+                droll, maxrot_dyx, minrot_sty, sdrot_stx, mrot_Y) %>%
+  mutate(ID = as.factor(ID)) %>%
+  na.omit() %>%
+  filter(Modifiers != "Missing data") %>%
+  mutate(
+    Modifiers = case_when(
+      Modifiers == "Agnostic behavior" ~ "Other",
+      Modifiers == "Standing" ~ "Resting",
+      .default = as.character(Modifiers)
+    )
+  )
+
+# Define Data Streams and Distributions
+dists <- list(
+  meanrot_stx = "norm",
+  sdrot_dyz   = "gamma", # SD is strictly positive, gamma is better than norm
+  drot_Y      = "gamma", # IQR is strictly positive
+  droll       = "gamma", 
+  maxrot_dyx  = "norm",
+  minrot_sty  = "norm",
+  sdrot_stx   = "gamma",
+  mrot_Y      = "norm"
+)
+
+# Initialize Parameters using your Known States (Modifiers)
+# Because you have a labeled training dataset, you can calculate the exact starting parameters for the model 
+# to ensure it converges on your specific behavioral definitions, rather than relying on K-means clustering.
+n_states <- length(unique(data_hmm$Modifiers))
+state_names <- sort(unique(data_hmm$Modifiers))
+
+# Extract empirical means and standard deviations from your labeled data
+initial_pars <- lapply(names(dists), function(stream) {
+  
+  # Calculate empirical means (m) and standard deviations (s) per state
+  m <- tapply(data_hmm[[stream]], data_hmm$Modifiers, mean, na.rm = TRUE)
+  s <- tapply(data_hmm[[stream]], data_hmm$Modifiers, sd, na.rm = TRUE)
+  
+  # Return the properly named numeric vectors based on the distribution
+  if (dists[[stream]] == "norm") {
+    list(mean = as.numeric(m), sd = as.numeric(s))
+  } else if (dists[[stream]] == "gamma") {
+    list(shape = as.numeric(m^2 / s^2), scale = as.numeric(s^2 / m))
+  }
+})
+
+# Assign the stream names (meanrot_stx, sdrot_dyz, etc.) to the list
+names(initial_pars) <- names(dists)
+
+# Cosntruct observation model (ties data, distributions, and initial parameters together)
+obs <- Observation$new(
+  data = data_hmm, 
+  dists = dists, 
+  par = initial_pars,
+  n_states = n_states
+)
+
+
+
