@@ -3,6 +3,8 @@
 # Heidi Rautiainen, with acknowledgements to Måns Karlsson for hidden Markov model
 # 2020-08-26
 # https://doi.org/10.5061/dryad.8sf7m0cs7
+#
+# Updated code to implement more modern packages for HMM
 ###
 
 library(tidyverse)
