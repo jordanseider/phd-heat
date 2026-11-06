@@ -251,7 +251,7 @@ for (k in 1:n_folds) {
                        mpitch    = "norm", 
                        sdrot_dyx = "gamma"),
     Par0        = Par0,
-    formula     = ~ cos_tod + sin_tod,
+    #formula     = ~ cos_tod + sin_tod,
     knownStates = train_known_states,
     stateNames  = state_levels
   )
@@ -269,3 +269,4 @@ real_block_conf_matrix <- confusionMatrix(
 
 print(real_block_conf_matrix)
 
+plot(phmm_block_fit, ask = FALSE)
